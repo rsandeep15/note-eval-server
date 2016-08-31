@@ -3,6 +3,7 @@
 
 # enable debugging
 import cgitb, cgi,sys,json
+from populatePrice import RealEstate
 cgitb.enable()
 
 data = sys.stdin.read()
@@ -18,3 +19,6 @@ user = request["userUid"]
 
 print "Processing this file: " + file
 print "For user: " + user
+
+instance = RealEstate()
+instance.run(file)
