@@ -17,8 +17,5 @@ request = json.loads(data)
 file = request["file"]
 user = request["userUid"]
 
-print "Processing this file: " + file
-print "For user: " + user
-
 instance = RealEstate()
-instance.run(file)
+instance.run(file, user)
