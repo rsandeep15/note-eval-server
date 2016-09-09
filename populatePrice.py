@@ -27,7 +27,7 @@ class RealEstate:
                 #First row contains all the parameter names + Formatting
                 key_cell = sheet.cell(row = 3, column = col).value
                 if isinstance(key_cell, basestring):
-                    key_cell = key_cell.replace("\n", "")
+                    key_cell = key_cell.replace("\n", "").strip()
 
                 #Get a set of values row-column wise
                 value_cell = sheet.cell(row = row, column = col).value
@@ -37,7 +37,9 @@ class RealEstate:
                     value_cell = int(mktime(value_cell.timetuple()))
 
                 doc[key_cell] = value_cell
-            addEntry = requests.post(endpoint, data = json.dumps(doc))
+            if "Street Address" in doc and "Zip" in doc:
+                if doc["Street Address"] is not None and doc["Zip"] is not None:
+                    addEntry = requests.post(endpoint, data = json.dumps(doc))
     # Finds all the columns with the vital information needed to query APIs
     def findColumns(self, sheet):
         mapping = {}
