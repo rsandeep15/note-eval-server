@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 class RealEstate:
     # The mapping maps "Street Address", "Zip", "Zillow" and "Trulia" to column numbers
-    def writeToFirebaseDatabase(self, sheet, user, start):
+    def writeToFirebaseDatabase(self, sheet, user, start, mapping):
         #Authentication steps
         firebase_database_keyfile = open('/var/www/API_Keys' +
         '/firebase_database_key.txt', "r")
@@ -40,12 +40,16 @@ class RealEstate:
                 if isinstance(value_cell, datetime.datetime):
                     value_cell = int(mktime(value_cell.timetuple()))
                 #Zillow API call to get current price
-                # if key_cell is "Zillow":
-                #     value_cell = self.getZillowPrice()
+                if key_cell == "Zillow":
+                    addressColumn = column_index_from_string(mapping["Street Address"])
+                    zipcodeColumn = column_index_from_string(mapping["Zip"])
+                    address = sheet.cell(row = cell.row, column = addressColumn).value
+                    zipcode = sheet.cell(row = cell.row, column = zipcodeColumn).value
+                    zillowPrice = self.getZillowPrice(address, zipcode)
+                    if zillowPrice != "Not found":
+                        value_cell = zillowPrice
                 doc[key_cell] = value_cell
             addEntry = requests.post(endpoint, data = json.dumps(doc))
-        print "Property Listing has been updated"
-
     def validateMapping(self, mapping, row):
         keys = mapping.keys()
         if "Street Address" in keys and "Zip" in keys and "Zillow" in keys and "Trulia" in keys:
@@ -83,7 +87,7 @@ class RealEstate:
         if element is None:
             return "Not found"
         else:
-            if (str(element.text) == "None"):
+            if str(element.text) == "None":
                 return "Not found"
             else:
                 return "$" + str(element.text)
@@ -116,7 +120,7 @@ class RealEstate:
         for sheet_name in sheets:
             sheet = wb.get_sheet_by_name(sheet_name)
             columnsMap = self.findColumns(sheet);
-
+            print sheet_name
             if (columnsMap == "Mapping Failed"):
                 print "Excel sheet: " + sheet_name +  " could not be parsed."
             else:
@@ -127,7 +131,7 @@ class RealEstate:
                 trulia_col = columnsMap["Trulia"]
 
                 start = columnsMap["Start"]
-                self.writeToFirebaseDatabase(sheet, user, start)
+                self.writeToFirebaseDatabase(sheet, user, start, columnsMap)
         #
         # driver = webdriver.Firefox()
         # for x in range(4, sheet.max_row):
