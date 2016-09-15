@@ -49,7 +49,8 @@ class RealEstate:
                     if zillowPrice != "Not found":
                         value_cell = zillowPrice
                 doc[key_cell] = value_cell
-            addEntry = requests.post(endpoint, data = json.dumps(doc))
+            if doc["Street Address"] is not None:
+                addEntry = requests.post(endpoint, data = json.dumps(doc))
     def validateMapping(self, mapping, row):
         keys = mapping.keys()
         if "Street Address" in keys and "Zip" in keys and "Zillow" in keys and "Trulia" in keys:
@@ -120,7 +121,6 @@ class RealEstate:
         for sheet_name in sheets:
             sheet = wb.get_sheet_by_name(sheet_name)
             columnsMap = self.findColumns(sheet);
-            print sheet_name
             if (columnsMap == "Mapping Failed"):
                 print "Excel sheet: " + sheet_name +  " could not be parsed."
             else:
