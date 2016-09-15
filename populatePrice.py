@@ -1,4 +1,5 @@
 import warnings,requests, xml.etree.ElementTree as ET, openpyxl
+from openpyxl.cell import column_index_from_string
 import urllib, requests
 import json, datetime
 from time import mktime
@@ -10,7 +11,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 class RealEstate:
-    def writeToFirebaseDatabase(self, sheet, user):
+    # The mapping maps "Street Address", "Zip", "Zillow" and "Trulia" to column numbers
+    def writeToFirebaseDatabase(self, sheet, user, start):
         #Authentication steps
         firebase_database_keyfile = open('/var/www/API_Keys' +
         '/firebase_database_key.txt', "r")
@@ -22,35 +24,47 @@ class RealEstate:
         authKey=firebase_database_key)
 
         doc = {}
-        for row in range(4, sheet.max_row):
-            for col in range(1, sheet.max_column):
-                #First row contains all the parameter names + Formatting
-                key_cell = sheet.cell(row = 3, column = col).value
+        for row_cells in sheet.iter_rows():
+            for cell in row_cells:
+                column = column_index_from_string(cell.column)
+                key_cell = sheet.cell(row = start, column = column).value
                 if isinstance(key_cell, basestring):
                     key_cell = key_cell.replace("\n", "").strip()
-
                 #Get a set of values row-column wise
-                value_cell = sheet.cell(row = row, column = col).value
+                value_cell = cell.value
                 if isinstance(value_cell, basestring):
                     value_cell = value_cell.replace("\n", "")
+                    # Do not enter the heading into the database
+                    if key_cell == value_cell:
+                        continue
                 if isinstance(value_cell, datetime.datetime):
                     value_cell = int(mktime(value_cell.timetuple()))
-
+                #Zillow API call to get current price
+                # if key_cell is "Zillow":
+                #     value_cell = self.getZillowPrice()
                 doc[key_cell] = value_cell
-            if "Street Address" in doc and "Zip" in doc:
-                if doc["Street Address"] is not None and doc["Zip"] is not None:
-                    addEntry = requests.post(endpoint, data = json.dumps(doc))
+            addEntry = requests.post(endpoint, data = json.dumps(doc))
+        print "Property Listing has been updated"
+
+    def validateMapping(self, mapping, row):
+        keys = mapping.keys()
+        if "Street Address" in keys and "Zip" in keys and "Zillow" in keys and "Trulia" in keys:
+            mapping["Start"] = row
+            return True
+        return False
     # Finds all the columns with the vital information needed to query APIs
     def findColumns(self, sheet):
         mapping = {}
-        keys = ["Street Address", "Zip", "Zillow", "Trulia"]
-        for col in range(1, sheet.max_column):
-            cell = sheet.cell(row = 3, column = col)
-        # Trimming possible white spaces on edge before comparison
-            if cell.value is not None and cell.value.strip() in keys:
-                mapping[cell.value.strip()] = col
+        keys = ["Street Address", "Zip", "Zillow", "Trulia", "Start"]
+        for row in sheet.iter_rows():
+            # Trimming possible white spaces on edge before comparison
+            for cell in row:
+                if cell.value is not None and str(cell.value).strip() in keys:
+                    mapping[str(cell.value).strip()] = cell.column
+            if self.validateMapping(mapping, cell.row):
+                return mapping
         # Returns a dictionary of the mappings for look up
-        return mapping
+        return "Mapping Failed"
 
     # Queries Zillow API for a price of a home given its address and zipcode
     def getZillowPrice(self, address, zipcode):
@@ -98,17 +112,22 @@ class RealEstate:
 
         warnings.simplefilter('ignore')
         wb = openpyxl.load_workbook('data/data.xlsx', data_only=True)
-        sheet = wb.get_sheet_by_name('Jan')
+        sheets = wb.get_sheet_names()
+        for sheet_name in sheets:
+            sheet = wb.get_sheet_by_name(sheet_name)
+            columnsMap = self.findColumns(sheet);
 
-        columnsMap = self.findColumns(sheet);
-        address_col = columnsMap["Street Address"]
-        zipcode_col = columnsMap["Zip"]
+            if (columnsMap == "Mapping Failed"):
+                print "Excel sheet: " + sheet_name +  " could not be parsed."
+            else:
+                address_col = columnsMap["Street Address"]
+                zipcode_col = columnsMap["Zip"]
 
-        zillow_col = columnsMap["Zillow"]
-        trulia_col = columnsMap["Trulia"]
+                zillow_col = columnsMap["Zillow"]
+                trulia_col = columnsMap["Trulia"]
 
-        self.writeToFirebaseDatabase(sheet, user)
-        print "Property Listing has been updated"
+                start = columnsMap["Start"]
+                self.writeToFirebaseDatabase(sheet, user, start)
         #
         # driver = webdriver.Firefox()
         # for x in range(4, sheet.max_row):
