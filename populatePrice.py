@@ -33,10 +33,9 @@ class RealEstate:
                 #Get a set of values row-column wise
                 value_cell = cell.value
                 if isinstance(value_cell, basestring):
-                    value_cell = value_cell.replace("\n", "").title()
+                    value_cell = value_cell.replace("\n", "").strip().title()
                     # Do not enter the heading into the database
-                    if key_cell == value_cell:
-                        continue
+
                 if isinstance(value_cell, datetime.datetime):
                     value_cell = int(mktime(value_cell.timetuple()))
                 #Zillow API call to get current price
@@ -49,7 +48,7 @@ class RealEstate:
                     if zillowPrice != "Not found":
                         value_cell = zillowPrice
                 doc[key_cell] = value_cell
-            if doc["Street Address"] is not None:
+            if doc["Street Address"] is not None and doc["Street Address"] != "Street Address":
                 addEntry = requests.post(endpoint, data = json.dumps(doc))
     def validateMapping(self, mapping, row):
         keys = mapping.keys()
