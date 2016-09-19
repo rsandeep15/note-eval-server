@@ -33,7 +33,7 @@ class RealEstate:
                 #Get a set of values row-column wise
                 value_cell = cell.value
                 if isinstance(value_cell, basestring):
-                    value_cell = value_cell.replace("\n", "")
+                    value_cell = value_cell.replace("\n", "").title()
                     # Do not enter the heading into the database
                     if key_cell == value_cell:
                         continue
